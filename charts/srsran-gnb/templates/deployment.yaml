@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "srsran-gnb.fullname" . }}
+  labels:
+    {{- include "srsran-gnb.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "srsran-gnb.selectorLabels" . | nindent 6 }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        {{- include "srsran-gnb.selectorLabels" . | nindent 8 }}
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{ "name": "n3network", "interface": "n3", "ips": [ "{{ .Values.gnbIp }}/24" ] }]'
+    spec:
+      containers:
+        - name: gnb
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/bash", "-c"]
+          args:
+          {{- if .Values.start.gnb }}
+            - /usr/local/bin/gnb -c /srsran/config/srsran-gnb.yaml
+          {{- else }}
+            - sleep infinity
+          {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.gnbConfig.remote_control.port }}
+              protocol: TCP
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+            privileged: true
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /mnt/*_log.txt"]
+          volumeMounts:
+            - mountPath: /srsran/config
+              name: gnb-volume
+            - mountPath: /var/log/
+              name: varlog
+            - name: host-mount
+              mountPath: /mnt/
+          {{- if .Values.resources.define}}
+          resources:
+            requests:
+              memory: {{ .Values.resources.requests.tcpdump.memory | quote }}
+              cpu: {{ .Values.resources.requests.tcpdump.cpu | quote }}
+            limits:
+              memory: {{ .Values.resources.limits.tcpdump.memory | quote }}
+              cpu: {{ .Values.resources.limits.tcpdump.cpu | quote }}
+          {{- end}}
+      {{- if .Values.start.logs }}
+        - name: gnb-logs
+          image: busybox
+          args: [/bin/sh, -c, 'while ! tail -f /var/log/gnb.log 2>/dev/null; do sleep 1 ; done']
+          volumeMounts:
+            - mountPath: /var/log/
+              name: varlog
+      {{- end }}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+        - name: gnb-volume
+          configMap:
+            name: gnb-configmap
+            items:
+              - key: srsran-gnb.yaml
+                path: srsran-gnb.yaml
+        - name: varlog
+          emptyDir: {}
+        - name: host-mount
+          hostPath:
+            path: /mnt/
+            type: Directory

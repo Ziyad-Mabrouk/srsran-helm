@@ -1,0 +1,83 @@
+name: Docker Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      images:
+        description: "Select which images to build (comma-separated: zmq, dpdk, uhd, srsue, telegraf, all)"
+        required: true
+        default: "all"
+
+env:
+  GHCR_USER: ziyad-mabrouk
+  TAG: v1.0
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - NAME: srsran-gnb-zmq
+            DOCKERFILE: ./docker/Dockerfile.gNB.zmq
+            CONTEXT: ./docker
+            KEY: zmq
+          - NAME: srsran-gnb-dpdk
+            DOCKERFILE: ./docker/Dockerfile.gNB.dpdk
+            CONTEXT: ./docker
+            KEY: dpdk
+          - NAME: srsran-gnb-uhd
+            DOCKERFILE: ./docker/Dockerfile.gNB.uhd
+            CONTEXT: ./docker
+            KEY: uhd
+          - NAME: srsue
+            DOCKERFILE: ./docker/Dockerfile,srsUE
+            CONTEXT: ./docker
+            KEY: srsue
+          - NAME: telegraf
+            DOCKERFILE: ./docker/Dockerfile.telegraf
+            CONTEXT: ./docker
+            KEY: telegraf
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Determine if this image should build
+        id: filter
+        run: |
+          INPUT="${{ github.event.inputs.images }}"
+          KEY="${{ matrix.KEY }}"
+          if [[ "$INPUT" == "all" ]] || [[ "$INPUT" == *"$KEY"* ]]; then
+            echo "build=true" >> $GITHUB_OUTPUT
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in to GHCR
+        if: steps.filter.outputs.build == 'true'
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ env.GHCR_USER }}" --password-stdin
+
+      - name: Build ${{ matrix.NAME }}
+        if: steps.filter.outputs.build == 'true'
+        run: |
+          docker build \
+            -t ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }} \
+            -f ${{ matrix.DOCKERFILE }} \
+            ${{ matrix.CONTEXT }}
+
+      - name: Push ${{ matrix.NAME }}
+        if: steps.filter.outputs.build == 'true'
+        run: docker push ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }}
+
+      - name: Skip build
+        if: steps.filter.outputs.build == 'false'
+        run: echo "Skipping ${{ matrix.NAME }} (not selected)."
+
+      - name: Log out
+        if: always()
+        run: docker logout ghcr.io

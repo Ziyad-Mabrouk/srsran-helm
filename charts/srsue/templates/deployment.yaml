@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "srsran-ue.fullname" . }}
+  labels:
+    {{- include "srsran-ue.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "srsran-ue.selectorLabels" . | nindent 6 }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        {{- include "srsran-ue.selectorLabels" . | nindent 8 }}
+      annotations:
+        k8s.v1.cni.cncf.io/networks: >-
+          [{ "name": "n3network", "interface": "n3", "ips": [ "{{ .Values.ueIp }}/24" ] }]
+    spec:
+      containers:
+        - name: ue
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["NET_ADMIN", "SYS_NICE", "IPC_LOCK", "CAP_NET_ADMIN"]
+          command: ["/bin/bash", "-c", "--"]
+          args:
+            - |
+              mkdir -p /dev/net
+              mknod /dev/net/tun c 10 200
+              ip netns add ue0
+              while true; do sleep 30; done
+          env:
+            - name: PATH
+              value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/srsran/config"
+          volumeMounts:
+            - mountPath: /srsran/config
+              name: ue-volume
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+        - name: ue-config
+          configMap:
+            name: {{ include "srsran-ue.fullname" . }}-ue-config
+            defaultMode: 0755
+      volumeMounts:
+        - name: ue-config
+          mountPath: /srsran/config

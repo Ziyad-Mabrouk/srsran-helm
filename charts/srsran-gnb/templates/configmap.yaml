@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gnb-configmap
+  labels:
+    {{- include "srsran-gnb.labels" . | nindent 4 }}
+data:
+  srsran-gnb.yaml: |-
+{{ toYaml .Values.gnbConfig | indent 4 }}

@@ -1,0 +1,11 @@
+# =========================
+# srsUE values file for basic ZMQ setup.
+# =========================
+
+image:
+  repository: ghcr.io/ziyad-mabrouk/srsue
+  tag: v1.0
+  pullPolicy: IfNotPresent
+
+ueIp: 10.10.3.232
+gnbIp: 10.10.3.231

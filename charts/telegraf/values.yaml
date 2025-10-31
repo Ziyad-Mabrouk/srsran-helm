@@ -1,0 +1,15 @@
+image:
+  repository: ghcr.io/ziyad-mabrouk/telegraf
+  tag: v1.0
+  pullPolicy: IfNotPresent
+
+env:
+  wsUrl: "srsran-gnb-metrics:8001"
+
+replicaCount: 1
+
+labels:
+  nf: gnb # important for Prometheus scraping configuration in Monarch 
+
+service:
+  metricsPort: 9090

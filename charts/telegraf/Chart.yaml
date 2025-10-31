@@ -1,0 +1,16 @@
+apiVersion: v2
+name: telegraf
+description: Minimal Helm chart for Telegraf metrics agent for srsRAN gNB
+kubeVersion: ">= 1.24.0-0"
+home: https://www.influxdata.com/time-series-platform/telegraf/
+sources:
+  - https://github.com/influxdata/telegraf
+keywords:
+  - telegraf
+  - metrics
+  - prometheus
+  - srsran
+  - gnb
+type: application
+version: 1.0.0
+appVersion: "1.35.0"

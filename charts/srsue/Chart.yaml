@@ -1,0 +1,16 @@
+apiVersion: v2
+name: srsran-ue
+description: Minimal Helm chart for srsRAN UE
+kubeVersion: ">= 1.24.0-0"
+icon: https://docs.srsran.com/en/latest/_static/logo.png
+home: https://docs.srsran.com/projects/project/en/latest/
+sources:
+  - https://github.com/srsran/srsRAN_4G
+keywords:
+- srsran
+- 4g
+- mobile
+- ue
+type: application
+version: 1.0.0
+appVersion: "23.11"
