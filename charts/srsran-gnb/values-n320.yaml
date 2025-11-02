@@ -53,7 +53,7 @@ gnbConfig:
     dl_arfcn: 628140                  # ARFCN of the downlink carrier (center frequency).
     band: 78                           # The NR band.
     channel_bandwidth_MHz: 20         # Bandwith in MHz. Number of PRBs will be automatically derived.
-    common_scs: 15                    # Subcarrier spacing in kHz used for data.
+    common_scs: 30                    # Subcarrier spacing in kHz used for data.
     plmn: "00101"                     # PLMN broadcasted by the gNB.
     tac: 1                            # Tracking area code (needs to match the core configuration).
     pdsch:
