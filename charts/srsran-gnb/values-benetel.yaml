@@ -107,4 +107,5 @@ gnbConfig:
   remote_control:
     bind_addr: 0.0.0.0
     enabled: true
+
     port: 8001
