@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       images:
-        description: "Select which images to build (comma-separated: zmq, dpdk, uhd, srsue, telegraf, all)"
+        description: "Select which images to build"
         required: true
         default: "all"
 
@@ -21,17 +21,53 @@ jobs:
       matrix:
         include:
           - NAME: srsran-gnb-zmq
-            DOCKERFILE: ./docker/Dockerfile.gNB.zmq
+            DOCKERFILE: ./docker/Dockerfile.srsran.gnb.zmq
             CONTEXT: ./docker
-            KEY: zmq
+            KEY: srsran-gnb-zmq
           - NAME: srsran-gnb-dpdk
-            DOCKERFILE: ./docker/Dockerfile.gNB.dpdk
+            DOCKERFILE: ./docker/Dockerfile.srsran.gnb.dpdk
             CONTEXT: ./docker
-            KEY: dpdk
+            KEY: srsran-gnb-dpdk
           - NAME: srsran-gnb-uhd
-            DOCKERFILE: ./docker/Dockerfile.gNB.uhd
+            DOCKERFILE: ./docker/Dockerfile.srsran.gnb.uhd
             CONTEXT: ./docker
-            KEY: uhd
+            KEY: srsran-gnb-uhd
+          - NAME: ocudu-gnb-zmq
+            DOCKERFILE: ./docker/Dockerfile.ocudu.gnb.zmq
+            CONTEXT: ./docker
+            KEY: ocudu-gnb-zmq
+          - NAME: ocudu-gnb-dpdk
+            DOCKERFILE: ./docker/Dockerfile.ocudu.gnb.dpdk
+            CONTEXT: ./docker
+            KEY: ocudu-gnb-dpdk
+          - NAME: ocudu-gnb-uhd
+            DOCKERFILE: ./docker/Dockerfile.ocudu.gnb.uhd
+            CONTEXT: ./docker
+            KEY: ocudu-gnb-uhd
+          - NAME: ocudu-du-zmq
+            DOCKERFILE: ./docker/Dockerfile.ocudu.du.zmq
+            CONTEXT: ./docker
+            KEY: ocudu-du-zmq
+          - NAME: ocudu-du-dpdk
+            DOCKERFILE: ./docker/Dockerfile.ocudu.du.dpdk
+            CONTEXT: ./docker
+            KEY: ocudu-du-dpdk
+          - NAME: ocudu-du-uhd
+            DOCKERFILE: ./docker/Dockerfile.ocudu.du.uhd
+            CONTEXT: ./docker
+            KEY: ocudu-du-uhd
+          - NAME: ocudu-cu
+            DOCKERFILE: ./docker/Dockerfile.ocudu.cu
+            CONTEXT: ./docker
+            KEY: ocudu-cu
+          - NAME: ocudu-cu-cp
+            DOCKERFILE: ./docker/Dockerfile.ocudu.cu-cp
+            CONTEXT: ./docker
+            KEY: ocudu-cu-cp
+          - NAME: ocudu-cu-up
+            DOCKERFILE: ./docker/Dockerfile.ocudu.cu-up
+            CONTEXT: ./docker
+            KEY: ocudu-cu-up
           - NAME: srsue
             DOCKERFILE: ./docker/Dockerfile.srsUE
             CONTEXT: ./docker

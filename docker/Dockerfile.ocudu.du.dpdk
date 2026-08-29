@@ -1,0 +1,125 @@
+ARG OS_VERSION=24.04
+ARG DPDK_VERSION=25.11.2
+ARG ROHC_VERSION=2.3.1
+
+FROM ubuntu:${OS_VERSION} AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    build-essential \
+    cmake \
+    pkg-config \
+    autoconf \
+    automake \
+    autotools-dev \
+    libtool \
+    libpcap-dev \
+    libcmocka-dev \
+    libfftw3-dev \
+    libmbedtls-dev \
+    libsctp-dev \
+    libyaml-cpp-dev \
+    libgtest-dev \
+    python3-pip \
+    ninja-build \
+    libnuma-dev \
+    libfdt-dev \
+    pciutils \
+    libibverbs-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install meson pyelftools \
+    || python3 -m pip install --break-system-packages meson pyelftools
+
+ARG ROHC_VERSION
+
+RUN curl -fsSL \
+    "https://rohc-lib.org/download/rohc-${ROHC_VERSION%.*}.x/${ROHC_VERSION}/rohc-${ROHC_VERSION}.tar.xz" \
+    -o /tmp/rohc.tar.xz \
+    && tar -xf /tmp/rohc.tar.xz -C /tmp \
+    && cd "/tmp/rohc-${ROHC_VERSION}" \
+    && ./autogen.sh \
+    && ./configure --prefix=/opt/rohc \
+    && make -j"$(nproc)" \
+    && make install \
+    && rm -rf /tmp/rohc-* \
+    && ldconfig
+
+ARG DPDK_VERSION
+
+RUN curl -fsSL \
+    "https://fast.dpdk.org/rel/dpdk-${DPDK_VERSION}.tar.xz" \
+    | tar -xJf - -C /tmp \
+    && cd "/tmp/dpdk-${DPDK_VERSION}" \
+    && meson setup build \
+        --prefix "/opt/dpdk/${DPDK_VERSION}" \
+        -Dcpu_instruction_set=native \
+    && meson compile -j"$(nproc)" -C build \
+    && meson install -C build \
+    && rm -rf "/tmp/dpdk-${DPDK_VERSION}" \
+    && rm -rf /opt/dpdk/${DPDK_VERSION}/bin/*
+
+RUN git clone --depth 1 --branch dev \
+    https://gitlab.com/ocudu/ocudu.git /src
+
+WORKDIR /src
+
+ARG DPDK_VERSION
+
+ENV ROHC_DIR=/opt/rohc
+ENV DPDK_DIR=/opt/dpdk/${DPDK_VERSION}
+
+RUN cmake -S . -B build \
+    -DBUILD_TESTING=OFF \
+    -DENABLE_UHD=Off \
+    -DENABLE_DPDK=On \
+    -DCMAKE_INSTALL_PREFIX=/opt/ocudu \
+    && cmake --build build --target odu -- -j"$(nproc)" \
+    && mkdir -p /opt/ocudu/bin \
+    && cp build/apps/du/odu /opt/ocudu/bin/odu
+
+FROM ubuntu:${OS_VERSION}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG DPDK_VERSION
+
+ENV LD_LIBRARY_PATH=/opt/rohc/lib:/opt/rohc/lib64:/opt/dpdk/${DPDK_VERSION}/lib:/opt/dpdk/${DPDK_VERSION}/lib64:/opt/dpdk/${DPDK_VERSION}/lib/x86_64-linux-gnu:/opt/dpdk/${DPDK_VERSION}/lib/aarch64-linux-gnu
+ENV PATH=/opt/dpdk/${DPDK_VERSION}/bin:${PATH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfftw3-dev \
+    libmbedtls-dev \
+    libsctp-dev \
+    libyaml-cpp-dev \
+    libgtest-dev \
+    libcap2-bin \
+    libnuma-dev \
+    libfdt-dev \
+    pciutils \
+    libatomic1 \
+    iproute2 \
+    libibverbs1 \
+    ibverbs-providers \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/rohc /opt/rohc
+COPY --from=builder /opt/dpdk/${DPDK_VERSION} /opt/dpdk/${DPDK_VERSION}
+COPY --from=builder /opt/ocudu/bin/odu /usr/local/bin/odu
+
+RUN printf '%s\n' \
+    /opt/rohc/lib \
+    /opt/rohc/lib64 \
+    /opt/dpdk/${DPDK_VERSION}/lib \
+    /opt/dpdk/${DPDK_VERSION}/lib64 \
+    /opt/dpdk/${DPDK_VERSION}/lib/x86_64-linux-gnu \
+    /opt/dpdk/${DPDK_VERSION}/lib/aarch64-linux-gnu \
+    > /etc/ld.so.conf.d/ocudu.conf \
+    && ldconfig \
+    && setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/odu
+
+ENTRYPOINT ["/usr/local/bin/odu"]
