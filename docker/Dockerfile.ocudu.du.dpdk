@@ -51,16 +51,13 @@ RUN curl -fsSL \
 
 ARG DPDK_VERSION
 
-RUN curl -fsSL \
-    "https://fast.dpdk.org/rel/dpdk-${DPDK_VERSION}.tar.xz" \
+RUN curl -fsSL "https://fast.dpdk.org/rel/dpdk-${DPDK_VERSION}.tar.xz" \
     | tar -xJf - -C /tmp \
-    && cd "/tmp/dpdk-${DPDK_VERSION}" \
-    && meson setup build \
-        --prefix "/opt/dpdk/${DPDK_VERSION}" \
-        -Dcpu_instruction_set=native \
+    && cd /tmp/dpdk*"${DPDK_VERSION}" \
+    && meson setup build --prefix "/opt/dpdk/${DPDK_VERSION}" -Dcpu_instruction_set=native \
     && meson compile -j"$(nproc)" -C build \
     && meson install -C build \
-    && rm -rf "/tmp/dpdk-${DPDK_VERSION}" \
+    && rm -rf /tmp/dpdk*"${DPDK_VERSION}" \
     && rm -rf /opt/dpdk/${DPDK_VERSION}/bin/*
 
 RUN git clone --depth 1 --branch dev \
