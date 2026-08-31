@@ -1,6 +1,7 @@
 ARG OS_VERSION=24.04
 ARG DPDK_VERSION=25.11.2
 ARG ROHC_VERSION=2.3.1
+ARG OCUDU_VERSION=release_26_04
 
 FROM ubuntu:${OS_VERSION} AS builder
 
@@ -60,7 +61,7 @@ RUN curl -fsSL "https://fast.dpdk.org/rel/dpdk-${DPDK_VERSION}.tar.xz" \
     && rm -rf /tmp/dpdk*"${DPDK_VERSION}" \
     && rm -rf /opt/dpdk/${DPDK_VERSION}/bin/*
 
-RUN git clone --depth 1 --branch dev \
+RUN git clone --depth 1 --branch "${OCUDU_VERSION}" \
     https://gitlab.com/ocudu/ocudu.git /src
 
 WORKDIR /src
