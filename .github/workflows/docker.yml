@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       images:
-        description: "Select which images to build"
+        description: "Select images to build: all, ocudu, srsran, or individual image names (comma-separated)"
         required: true
         default: "all"
+        type: string
 
 env:
   GHCR_USER: ziyad-mabrouk
@@ -24,54 +25,67 @@ jobs:
             DOCKERFILE: ./docker/Dockerfile.srsran.gnb.zmq
             CONTEXT: ./docker
             KEY: srsran-gnb-zmq
+
           - NAME: srsran-gnb-dpdk
             DOCKERFILE: ./docker/Dockerfile.srsran.gnb.dpdk
             CONTEXT: ./docker
             KEY: srsran-gnb-dpdk
+
           - NAME: srsran-gnb-uhd
             DOCKERFILE: ./docker/Dockerfile.srsran.gnb.uhd
             CONTEXT: ./docker
             KEY: srsran-gnb-uhd
+
           - NAME: ocudu-gnb-zmq
             DOCKERFILE: ./docker/Dockerfile.ocudu.gnb.zmq
             CONTEXT: ./docker
             KEY: ocudu-gnb-zmq
+
           - NAME: ocudu-gnb-dpdk
             DOCKERFILE: ./docker/Dockerfile.ocudu.gnb.dpdk
             CONTEXT: ./docker
             KEY: ocudu-gnb-dpdk
+
           - NAME: ocudu-gnb-uhd
             DOCKERFILE: ./docker/Dockerfile.ocudu.gnb.uhd
             CONTEXT: ./docker
             KEY: ocudu-gnb-uhd
+
           - NAME: ocudu-du-zmq
             DOCKERFILE: ./docker/Dockerfile.ocudu.du.zmq
             CONTEXT: ./docker
             KEY: ocudu-du-zmq
+
           - NAME: ocudu-du-dpdk
             DOCKERFILE: ./docker/Dockerfile.ocudu.du.dpdk
             CONTEXT: ./docker
             KEY: ocudu-du-dpdk
+
           - NAME: ocudu-du-uhd
             DOCKERFILE: ./docker/Dockerfile.ocudu.du.uhd
             CONTEXT: ./docker
             KEY: ocudu-du-uhd
+
           - NAME: ocudu-cu
             DOCKERFILE: ./docker/Dockerfile.ocudu.cu
             CONTEXT: ./docker
             KEY: ocudu-cu
+
           - NAME: ocudu-cu-cp
             DOCKERFILE: ./docker/Dockerfile.ocudu.cu-cp
             CONTEXT: ./docker
             KEY: ocudu-cu-cp
+
           - NAME: ocudu-cu-up
             DOCKERFILE: ./docker/Dockerfile.ocudu.cu-up
             CONTEXT: ./docker
             KEY: ocudu-cu-up
+
           - NAME: srsue
             DOCKERFILE: ./docker/Dockerfile.srsUE
             CONTEXT: ./docker
             KEY: srsue
+
           - NAME: telegraf
             DOCKERFILE: ./docker/Dockerfile.telegraf
             CONTEXT: ./docker
@@ -85,18 +99,49 @@ jobs:
 
       - name: Determine if this image should build
         id: filter
+        shell: bash
         run: |
           INPUT="${{ github.event.inputs.images }}"
           KEY="${{ matrix.KEY }}"
-          if [[ "$INPUT" == "all" ]] || [[ "$INPUT" == *"$KEY"* ]]; then
-            echo "build=true" >> $GITHUB_OUTPUT
-          else
-            echo "build=false" >> $GITHUB_OUTPUT
+
+          # Normalize input:
+          # - remove spaces
+          # - convert to lowercase
+          INPUT=$(echo "$INPUT" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+          KEY=$(echo "$KEY" | tr '[:upper:]' '[:lower:]')
+
+          BUILD=false
+
+          # Build everything
+          if [[ "$INPUT" == "all" ]]; then
+            BUILD=true
+
+          # Build all O-CU/DU/gNB images
+          elif [[ ",$INPUT," == *",ocudu,"* ]] && [[ "$KEY" == ocudu-* ]]; then
+            BUILD=true
+
+          # Build all srsRAN images
+          elif [[ ",$INPUT," == *",srsran,"* ]] && [[ "$KEY" == srsran-* ]]; then
+            BUILD=true
+
+          # Build a specific image
+          elif [[ ",$INPUT," == *",$KEY,"* ]]; then
+            BUILD=true
           fi
+
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
+          echo "Input: $INPUT"
+          echo "Image: $KEY"
+          echo "Build: $BUILD"
 
       - name: Log in to GHCR
         if: steps.filter.outputs.build == 'true'
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ env.GHCR_USER }}" --password-stdin
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" |
+            docker login ghcr.io \
+              -u "${{ env.GHCR_USER }}" \
+              --password-stdin
 
       - name: Build ${{ matrix.NAME }}
         if: steps.filter.outputs.build == 'true'
@@ -108,11 +153,14 @@ jobs:
 
       - name: Push ${{ matrix.NAME }}
         if: steps.filter.outputs.build == 'true'
-        run: docker push ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }}
+        run: |
+          docker push \
+            ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }}
 
       - name: Skip build
         if: steps.filter.outputs.build == 'false'
-        run: echo "Skipping ${{ matrix.NAME }} (not selected)."
+        run: |
+          echo "Skipping ${{ matrix.NAME }} (not selected)."
 
       - name: Log out
         if: always()
