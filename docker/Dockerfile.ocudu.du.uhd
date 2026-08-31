@@ -67,6 +67,8 @@ RUN curl -fsSL \
     && cmake --install build \
     && rm -rf "/tmp/uhd-${UHD_VERSION}"
 
+ARG OCUDU_VERSION
+
 RUN git clone --depth 1 --branch "${OCUDU_VERSION}" \
     https://gitlab.com/ocudu/ocudu.git /src
 

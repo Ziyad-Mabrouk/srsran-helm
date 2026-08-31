@@ -40,6 +40,8 @@ RUN curl -fsSL \
     && rm -rf /tmp/rohc-* \
     && ldconfig
 
+ARG OCUDU_VERSION
+
 RUN git clone --depth 1 --branch "${OCUDU_VERSION}" \
     https://gitlab.com/ocudu/ocudu.git /src
 
