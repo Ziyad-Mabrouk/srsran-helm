@@ -85,7 +85,7 @@ jobs:
             KEY: ocudu-cu-up
 
           - NAME: srsue
-            DOCKERFILE: ./docker/Dockerfile.srsrue
+            DOCKERFILE: ./docker/Dockerfile.srsue
             CONTEXT: ./docker
             KEY: srsue
 
