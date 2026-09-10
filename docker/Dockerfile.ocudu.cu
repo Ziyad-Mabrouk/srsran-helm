@@ -1,6 +1,7 @@
 ARG OS_VERSION=24.04
 ARG ROHC_VERSION=2.3.1
-ARG OCUDU_VERSION=release_26_04
+
+ARG TAG=release_26_04
 
 FROM ubuntu:${OS_VERSION} AS builder
 
@@ -40,9 +41,9 @@ RUN curl -fsSL \
     && rm -rf /tmp/rohc-* \
     && ldconfig
 
-ARG OCUDU_VERSION
+ARG TAG
 
-RUN git clone --depth 1 --branch "${OCUDU_VERSION}" \
+RUN git clone --depth 1 --branch "${TAG}" \
     https://gitlab.com/ocudu/ocudu.git /src
 
 WORKDIR /src

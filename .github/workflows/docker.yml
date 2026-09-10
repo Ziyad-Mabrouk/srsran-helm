@@ -8,10 +8,13 @@ on:
         required: true
         default: "all"
         type: string
+      tag:
+        description: "Tag for the Docker images"
+        required: true
+        default: "release_26_04"
 
 env:
   GHCR_USER: ziyad-mabrouk
-  TAG: release_26_04
 
 jobs:
   docker:
@@ -82,7 +85,7 @@ jobs:
             KEY: ocudu-cu-up
 
           - NAME: srsue
-            DOCKERFILE: ./docker/Dockerfile.srsUE
+            DOCKERFILE: ./docker/Dockerfile.srsrue
             CONTEXT: ./docker
             KEY: srsue
 
@@ -147,15 +150,16 @@ jobs:
         if: steps.filter.outputs.build == 'true'
         run: |
           docker build \
-            -t ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }} \
+            -t ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ github.event.inputs.tag }} \
             -f ${{ matrix.DOCKERFILE }} \
+            --build-arg TAG=${{ github.event.inputs.tag }} \
             ${{ matrix.CONTEXT }}
 
       - name: Push ${{ matrix.NAME }}
         if: steps.filter.outputs.build == 'true'
         run: |
           docker push \
-            ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ env.TAG }}
+            ghcr.io/${{ env.GHCR_USER }}/${{ matrix.NAME }}:${{ github.event.inputs.tag }}
 
       - name: Skip build
         if: steps.filter.outputs.build == 'false'

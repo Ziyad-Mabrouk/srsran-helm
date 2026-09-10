@@ -1,44 +1,121 @@
-# =========================
-# srsRAN UE Multi-Stage Dockerfile
-# =========================
-
 ARG OS_VERSION=24.04
+ARG UHD_VERSION=4.9.0.1
+ARG TAG=release_25_10
 
 FROM ubuntu:${OS_VERSION} AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
     git \
-    cmake \
     build-essential \
-    make \
-    gcc \
-    g++ \
+    cmake \
     pkg-config \
     libfftw3-dev \
     libmbedtls-dev \
-    libsctp-dev \
-    libyaml-cpp-dev \
-    libgtest-dev \
-    libboost-program-options-dev \
+    libboost-all-dev \
     libconfig++-dev \
+    libsctp-dev \
     libzmq3-dev \
-    gnuradio \
-    iproute2 \
-    python3 \
-    tmux \
-    ca-certificates \
+    libusb-1.0-0-dev \
+    libpcsclite-dev \
+    libncurses5-dev \
+    libtecla-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /opt
+ARG UHD_VERSION
 
-RUN git clone https://github.com/srsRAN/srsRAN_4G.git
+RUN curl -fsSL \
+    "https://github.com/EttusResearch/uhd/archive/refs/tags/v${UHD_VERSION}.tar.gz" \
+    | tar -xzf - -C /tmp \
+    && cd "/tmp/uhd-${UHD_VERSION}/host" \
+    && cmake -S . -B build \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DCMAKE_INSTALL_PREFIX=/opt/uhd/${UHD_VERSION} \
+        -DENABLE_LIBUHD=On \
+        -DENABLE_PYTHON_API=Off \
+        -DENABLE_EXAMPLES=Off \
+        -DENABLE_TESTS=Off \
+        -DBoost_NO_BOOST_CMAKE=ON \
+        -DCMAKE_CXX_FLAGS="-march=native" \
+    && cmake --build build -- -j"$(nproc)" \
+    && cmake --install build \
+    && rm -rf "/tmp/uhd-${UHD_VERSION}"
 
-RUN cd srsRAN_4G && mkdir build && cd build && \
-    CXXFLAGS="-Wno-error=array-bounds" cmake ../ -DBUILD_TESTING=OFF && \
-    make -j$(nproc)
+ARG TAG
 
-RUN apt-get purge -y git cmake build-essential gcc g++ pkg-config \
-    && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 --branch "${TAG}" \
+    https://github.com/srsran/srsRAN_4G.git /src
 
+WORKDIR /src
+
+ARG UHD_VERSION
+
+ENV UHD_DIR=/opt/uhd/${UHD_VERSION}
+
+RUN cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DENABLE_SRSUE=On \
+    -DENABLE_SRSENB=Off \
+    -DENABLE_SRSEPC=Off \
+    -DENABLE_GUI=Off \
+    -DENABLE_UHD=On \
+    -DENABLE_BLADERF=Off \
+    -DENABLE_SOAPYSDR=Off \
+    -DENABLE_ZEROMQ=On \
+    -DENABLE_HARDSIM=On \
+    -DENABLE_TTCN3=Off \
+    -DENABLE_ZMQ_TEST=Off \
+    -DBUILD_STATIC=Off \
+    -DENABLE_WERROR=Off \
+    -DAUTO_DETECT_ISA=On \
+    -DGCC_ARCH=native \
+    -DCMAKE_INSTALL_PREFIX=/opt/srsran \
+    && cmake --build build --target srsue -- -j"$(nproc)" \
+    && mkdir -p /opt/srsran/bin \
+    && cp build/srsue/src/srsue /opt/srsran/bin/srsue \
+    && cp srsue/ue.conf.example /opt/srsran/ue.conf.example
+
+FROM ubuntu:${OS_VERSION}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG UHD_VERSION
+
+ENV LD_LIBRARY_PATH=/opt/uhd/${UHD_VERSION}/lib:/opt/uhd/${UHD_VERSION}/lib64:/opt/uhd/${UHD_VERSION}/lib/x86_64-linux-gnu:/opt/uhd/${UHD_VERSION}/lib/aarch64-linux-gnu
+ENV PATH=/opt/uhd/${UHD_VERSION}/bin:${PATH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libfftw3-dev \
+    libmbedtls-dev \
+    libboost-program-options1.83.0 \
+    libboost-system1.83.0 \
+    libboost-thread1.83.0 \
+    libconfig9 \
+    libsctp1 \
+    libzmq5 \
+    libusb-1.0-0 \
+    libpcsclite1 \
+    libncurses6 \
+    libtecla1 \
+    libcap2-bin \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/uhd/${UHD_VERSION} /opt/uhd/${UHD_VERSION}
+COPY --from=builder /opt/srsran/bin/srsue /usr/local/bin/srsue
+COPY --from=builder /opt/srsran/ue.conf.example /etc/srsran/ue.conf.example
+
+RUN mkdir -p /etc/srsran \
+    && printf '%s\n' \
+        /opt/uhd/${UHD_VERSION}/lib \
+        /opt/uhd/${UHD_VERSION}/lib64 \
+        /opt/uhd/${UHD_VERSION}/lib/x86_64-linux-gnu \
+        /opt/uhd/${UHD_VERSION}/lib/aarch64-linux-gnu \
+        > /etc/ld.so.conf.d/srsran.conf \
+    && ldconfig \
+    && uhd_images_downloader \
+    && setcap cap_sys_nice,cap_ipc_lock,cap_perfmon+ep /usr/local/bin/srsue
+
+ENTRYPOINT ["/usr/local/bin/srsue"]
