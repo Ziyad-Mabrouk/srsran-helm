@@ -20,6 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsctp-dev \
     libzmq3-dev \
     libusb-1.0-0-dev \
+    python3-mako \
+    python3-numpy \
+    python3-setuptools \
+    python3-requests \
     libpcsclite-dev \
     libncurses5-dev \
     libtecla-dev \
