@@ -101,6 +101,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsctp1 \
     libzmq5 \
     libusb-1.0-0 \
+    python3-dev \
+    python3-requests \
     libpcsclite1 \
     libncurses6 \
     libtecla1 \
