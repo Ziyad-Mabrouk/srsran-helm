@@ -107,6 +107,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libncurses6 \
     libtecla1 \
     libcap2-bin \
+    iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/uhd/${UHD_VERSION} /opt/uhd/${UHD_VERSION}
