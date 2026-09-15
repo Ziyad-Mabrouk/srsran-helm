@@ -77,9 +77,8 @@ RUN cmake -S . -B build \
     -DAUTO_DETECT_ISA=On \
     -DGCC_ARCH=native \
     -DCMAKE_INSTALL_PREFIX=/opt/srsran \
-    && cmake --build build --target srsue -- -j"$(nproc)" \
-    && mkdir -p /opt/srsran/bin \
-    && cp build/srsue/src/srsue /opt/srsran/bin/srsue \
+    && cmake --build build -- -j"$(nproc)" \
+    && cmake --install build \
     && cp srsue/ue.conf.example /opt/srsran/ue.conf.example
 
 FROM ubuntu:${OS_VERSION}
@@ -88,7 +87,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 ARG UHD_VERSION
 
-ENV LD_LIBRARY_PATH=/opt/uhd/${UHD_VERSION}/lib:/opt/uhd/${UHD_VERSION}/lib64:/opt/uhd/${UHD_VERSION}/lib/x86_64-linux-gnu:/opt/uhd/${UHD_VERSION}/lib/aarch64-linux-gnu
+ENV LD_LIBRARY_PATH=/opt/srsran/lib:/opt/srsran/lib64:/opt/uhd/${UHD_VERSION}/lib:/opt/uhd/${UHD_VERSION}/lib64:/opt/uhd/${UHD_VERSION}/lib/x86_64-linux-gnu:/opt/uhd/${UHD_VERSION}/lib/aarch64-linux-gnu
 ENV PATH=/opt/uhd/${UHD_VERSION}/bin:${PATH}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -111,11 +110,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/uhd/${UHD_VERSION} /opt/uhd/${UHD_VERSION}
+COPY --from=builder /opt/srsran /opt/srsran
+
 COPY --from=builder /opt/srsran/bin/srsue /usr/local/bin/srsue
-COPY --from=builder /opt/srsran/ue.conf.example /etc/srsran/ue.conf.example
 
 RUN mkdir -p /etc/srsran \
     && printf '%s\n' \
+        /opt/srsran/lib \
+        /opt/srsran/lib64 \
         /opt/uhd/${UHD_VERSION}/lib \
         /opt/uhd/${UHD_VERSION}/lib64 \
         /opt/uhd/${UHD_VERSION}/lib/x86_64-linux-gnu \
