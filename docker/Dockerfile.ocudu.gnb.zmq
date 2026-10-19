@@ -56,6 +56,9 @@ RUN cmake -S . -B build \
     -DENABLE_DPDK=Off \
     -DENABLE_EXPORT=ON \
     -DENABLE_ZEROMQ=ON \
+    -DMARCH=x86-64-v3 \
+    -DMTUNE=generic \
+    -DCMAKE_C_FLAGS="-march=x86-64-v3 -mtune=generic" \
     -DCMAKE_INSTALL_PREFIX=/opt/ocudu \
     && cmake --build build --target gnb -- -j"$(nproc)" \
     && mkdir -p /opt/ocudu/bin \
